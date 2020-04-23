@@ -1,6 +1,6 @@
 // Exported from:        http://kubuntu:5516/#/templates/Folder2077150601dc4a849abb23e6ec547b04-Release30b71c3335734c01bd45d754a45306ad/releasefile
 // XL Release version:   9.5.2
-// Date created:         Wed Apr 08 18:23:21 CEST 2020
+// Date created:         Thu Apr 23 18:21:45 CEST 2020
 
 xlr {
   template('Microservice with Service Mesh') {
@@ -220,6 +220,36 @@ xlr {
         showOnReleaseStart false
         value '1'
       }
+      stringVariable('jiraComponent') {
+        required false
+        showOnReleaseStart false
+        label 'Jira component name'
+        value 'component'
+      }
+      stringVariable('jiraProjectKey') {
+        required false
+        showOnReleaseStart false
+        label 'Jira project key'
+        value 'KEY'
+      }
+      stringVariable('jiraVersion') {
+        required false
+        showOnReleaseStart false
+        label 'Jira version'
+        value '1'
+      }
+      stringVariable('jiraSummary') {
+        required false
+        showOnReleaseStart false
+        label 'Jira summary'
+        value 'Summary'
+      }
+      stringVariable('DeliveryID') {
+        required false
+        showOnReleaseStart false
+        label 'ID of the new delivery'
+        value '1'
+      }
     }
     description '## Deploy microservices with Istio resources enabled'
     scheduledStartDate Date.parse("yyyy-MM-dd'T'HH:mm:ssZ", '2019-10-16T09:00:00+0200')
@@ -228,6 +258,68 @@ xlr {
     scriptUsername 'admin'
     scriptUserPassword '{aes:v0}HxaBT77BiRHGIQ5KZ4HvZgExnjDQjUrhN+av3QYe9uc='
     phases {
+      phase('REGISTER WITH DELIVERY') {
+        color '#FFAB00'
+        tasks {
+          custom('Get project and component name') {
+            script {
+              type 'webhook.JsonWebhook'
+              'URL' '${global.jira.url}/rest/api/2/issue/${issue}'
+              username '${global.jira.user}'
+              password variable('global.jira.password')
+              result variable('jiraComponent')
+              result2 variable('jiraProjectKey')
+              result3 variable('microservice-name')
+              jsonPathExpression 'fields.components[0].name'
+              jsonPathExpression2 'fields.project.key'
+              jsonPathExpression3 'fields.components[0].name'
+            }
+          }
+          custom('Get version and summary') {
+            script {
+              type 'webhook.JsonWebhook'
+              'URL' '${global.jira.url}/rest/api/2/issue/${issue}'
+              username '${global.jira.user}'
+              password variable('global.jira.password')
+              result variable('jiraVersion')
+              result2 variable('jiraSummary')
+              jsonPathExpression 'fields.fixVersions[0].name'
+              jsonPathExpression2 'fields.summary'
+            }
+          }
+          custom('Get or create delivery') {
+            script {
+              type 'delivery.FindOrCreateDelivery'
+              patternId 'Deliveries/Delivery1d1e6b3b85964ccbbbd5c63b3c289ec7'
+              searchStrategy 'Search by criteria'
+              nameFilter '${jiraProjectKey}: version ${jiraVersion}'
+              fallback true
+              title '${jiraProjectKey}: version ${jiraVersion}'
+              deliveryId variable('DeliveryID')
+            }
+          }
+          custom('Register tracked items in the delivery') {
+            script {
+              type 'delivery.RegisterTrackedItems'
+              deliveryId '${DeliveryID}'
+              trackedItems '${issue} ${jiraSummary}'
+            }
+          }
+          custom('Mark tracked item: register') {
+            script {
+              type 'delivery.MarkTrackedItems'
+              deliveryId '${DeliveryID}'
+              patternId 'Deliveries/Delivery1d1e6b3b85964ccbbbd5c63b3c289ec7'
+              trackedItems '${issue} ${jiraSummary}'
+              stage 'Deliveries/Delivery1d1e6b3b85964ccbbbd5c63b3c289ec7/Stage1c3b4663a745479eb353d94d54cd0fc5'
+              precedingStages false
+            }
+          }
+          manual('Review') {
+            owner 'admin'
+          }
+        }
+      }
       phase('BUILD') {
         color '#0099CC'
         tasks {
@@ -250,6 +342,7 @@ xlr {
           }
           custom('Build Docker image') {
             description 'Jenkins will build the Docker image. We get the build number and build status as result in output properties.'
+            precondition 
             script {
               type 'jenkins.Build'
               jenkinsServer 'Jenkins Server'
@@ -287,6 +380,19 @@ xlr {
                  '* `Build number`: ${build-number}\n' +
                  '* `Build status`: ${build-status}'
             replyTo 'lyhsoftcompany@gmail.com'
+          }
+          custom('Mark tracked item: build') {
+            script {
+              type 'delivery.MarkTrackedItems'
+              deliveryId '${DeliveryID}'
+              patternId 'Deliveries/Delivery1d1e6b3b85964ccbbbd5c63b3c289ec7'
+              trackedItems '${issue} ${jiraSummary}'
+              stage 'Deliveries/Delivery1d1e6b3b85964ccbbbd5c63b3c289ec7/Stageebc342a19de247e6857b5df9e13bb377'
+              precedingStages false
+            }
+          }
+          manual('Review') {
+            owner 'admin'
           }
         }
       }
@@ -458,6 +564,16 @@ if releaseVariables["ms-previous-version-dev"] != "-":
               comment 'Deploying microservice on integration environment.'
             }
           }
+          custom('Mark tracked item: dev') {
+            script {
+              type 'delivery.MarkTrackedItems'
+              deliveryId '${DeliveryID}'
+              patternId 'Deliveries/Delivery1d1e6b3b85964ccbbbd5c63b3c289ec7'
+              trackedItems '${issue} ${jiraSummary}'
+              stage 'Deliveries/Delivery1d1e6b3b85964ccbbbd5c63b3c289ec7/Stagee50c43b2615a40fe885cd6f6d75c83ce'
+              precedingStages false
+            }
+          }
         }
       }
       phase('TEST AND VALIDATION') {
@@ -609,35 +725,14 @@ if releaseVariables["ms-previous-version-dev"] != "-":
               condition('Review analysis Fortify')
             }
           }
-        }
-      }
-      phase('DEPENDENCIES') {
-        color '#991C71'
-        tasks {
-          sequentialGroup('Dependencies between microservices') {
-            precondition 'len(releaseVariables[\'Dependencias Microservicios\']) > 0'
-            tasks {
-              custom('Get microservices dependencies') {
-                script {
-                  type 'dependencies.GetDependencies'
-                  password variable('folder.xlrAdminPassword')
-                  phaseName 'DESPLIEGUE DESARROLLO'
-                  dependencies variable('Dependencias Microservicios')
-                  listIdsDependentPhases variable('id_phases')
-                }
-              }
-              custom('Update gate with dependencies') {
-                script {
-                  type 'dependencies.SetDependencies'
-                  password variable('folder.xlrAdminPassword')
-                  phaseName 'DEPENDENCIAS'
-                  taskName 'Esperar a que los microservicios dependientes estén desplegados en DEV'
-                  listIdsDependentPhases variable('id_phases')
-                }
-              }
-              gate('Wait for microservices dependencies to be satisfied') {
-                owner 'isanchez'
-              }
+          custom('Mark tracked item: test') {
+            script {
+              type 'delivery.MarkTrackedItems'
+              deliveryId '${DeliveryID}'
+              patternId 'Deliveries/Delivery1d1e6b3b85964ccbbbd5c63b3c289ec7'
+              trackedItems '${issue} ${jiraSummary}'
+              stage 'Deliveries/Delivery1d1e6b3b85964ccbbbd5c63b3c289ec7/Stagee4f35d1ce6b345d5a76587b530b88056'
+              precedingStages false
             }
           }
         }
@@ -651,20 +746,6 @@ if releaseVariables["ms-previous-version-dev"] != "-":
             'Once finished, the deployment on PRE environmnet will start.'
             owner 'jcla'
             locked true
-          }
-          custom('Check cluster K8s available') {
-            failureHandler 'taskApi.commentTask(getCurrentTask().getId(), "K8s cluster available validation completed with error")'
-            taskFailureHandlerEnabled true
-            taskRecoverOp com.xebialabs.xlrelease.domain.recover.TaskRecoverOp.RUN_SCRIPT
-            script {
-              type 'remoteScript.Unix'
-              script './kubectl cluster-info'
-              scriptIgnoreVariableInterpolation true
-              remotePath '/snap/bin'
-              address 'localhost'
-              username '${folder.localHostUser}'
-              password variable('folder.localHostPassword')
-            }
           }
           sequentialGroup('Get the latest version deployed in PRE') {
             tasks {
@@ -696,6 +777,20 @@ if releaseVariables["ms-previous-version-pre"] != "-":
               ciID 'Applications/Applications/application-${microservice-application}-k8s/deployment-${microservice-name}/${ms-version}'
               ciProperty 'satisfiesOkTestManager'
               propertyValue 'true'
+            }
+          }
+          custom('Check cluster K8s available') {
+            failureHandler 'taskApi.commentTask(getCurrentTask().getId(), "K8s cluster available validation completed with error")'
+            taskFailureHandlerEnabled true
+            taskRecoverOp com.xebialabs.xlrelease.domain.recover.TaskRecoverOp.RUN_SCRIPT
+            script {
+              type 'remoteScript.Unix'
+              script './kubectl cluster-info'
+              scriptIgnoreVariableInterpolation true
+              remotePath '/snap/bin'
+              address 'localhost'
+              username '${folder.localHostUser}'
+              password variable('folder.localHostPassword')
             }
           }
           custom('Deploying microservicio ${microservice-name} version ${ms-version} on PRE environment') {
@@ -815,6 +910,28 @@ if releaseVariables["ms-previous-version-pre"] != "-":
               jiraServer 'Jira Server 7.13.0'
               issueId '${issue}'
               expectedStatusList 'Autorizado paso a producción'
+            }
+          }
+          custom('Mark tracked item: pre') {
+            script {
+              type 'delivery.MarkTrackedItems'
+              deliveryId '${DeliveryID}'
+              patternId 'Deliveries/Delivery1d1e6b3b85964ccbbbd5c63b3c289ec7'
+              trackedItems '${issue} ${jiraSummary}'
+              stage 'Deliveries/Delivery1d1e6b3b85964ccbbbd5c63b3c289ec7/Stageb711d9a1059a49a7a10f5e5acee7af82'
+              precedingStages false
+            }
+          }
+          manual('Wait for other microservices') {
+            owner 'admin'
+          }
+          custom('Wait for other microservices to complete the build and test stage') {
+            precondition 'False'
+            script {
+              type 'delivery.WaitForStage'
+              patternId 'Deliveries/Delivery1d1e6b3b85964ccbbbd5c63b3c289ec7'
+              deliveryId '${DeliveryID}'
+              stage 'Deliveries/Delivery1d1e6b3b85964ccbbbd5c63b3c289ec7/Stageb711d9a1059a49a7a10f5e5acee7af82'
             }
           }
         }
@@ -1233,6 +1350,14 @@ print("Ejecucion de tests")
       phase('POST DEPLOY') {
         color '#0099CC'
         tasks {
+          script('Publish blog with new features') {
+            owner 'admin'
+            script (['''\
+import time
+time.sleep(5)
+print("Publish blog")
+'''])
+          }
           custom('Update state ${issue} on Jira - production') {
             script {
               type 'jira.UpdateIssue'
@@ -1291,6 +1416,16 @@ print("Ejecucion de tests")
             '* `Name`: ${microservice-name}\n' +
             '* `Version`: ${ms-version}'
             replyTo 'lyhsoftcompany@gmail.com'
+          }
+          custom('Mark tracked item: pre (copy)') {
+            script {
+              type 'delivery.MarkTrackedItems'
+              deliveryId '${DeliveryID}'
+              patternId 'Deliveries/Delivery1d1e6b3b85964ccbbbd5c63b3c289ec7'
+              trackedItems '${issue} ${jiraSummary}'
+              stage 'Deliveries/Delivery1d1e6b3b85964ccbbbd5c63b3c289ec7/Stage51cdee56926842658e56812a7e61341d'
+              precedingStages false
+            }
           }
         }
       }
