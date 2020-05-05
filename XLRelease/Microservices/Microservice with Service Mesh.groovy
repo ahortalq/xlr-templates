@@ -1,6 +1,6 @@
 // Exported from:        http://kubuntu:5516/#/templates/Folder2077150601dc4a849abb23e6ec547b04-Release30b71c3335734c01bd45d754a45306ad/releasefile
 // XL Release version:   9.5.2
-// Date created:         Thu Apr 23 18:21:45 CEST 2020
+// Date created:         Tue May 05 16:32:14 CEST 2020
 
 xlr {
   template('Microservice with Service Mesh') {
@@ -167,7 +167,7 @@ xlr {
         required false
         showOnReleaseStart false
         label 'yamls-directory'
-        value '/tmp/yamls'
+        value '/opt/xebialabs/webinark8s'
       }
       listBoxVariable('deployment-type') {
         required false
@@ -303,16 +303,6 @@ xlr {
               type 'delivery.RegisterTrackedItems'
               deliveryId '${DeliveryID}'
               trackedItems '${issue} ${jiraSummary}'
-            }
-          }
-          custom('Mark tracked item: register') {
-            script {
-              type 'delivery.MarkTrackedItems'
-              deliveryId '${DeliveryID}'
-              patternId 'Deliveries/Delivery1d1e6b3b85964ccbbbd5c63b3c289ec7'
-              trackedItems '${issue} ${jiraSummary}'
-              stage 'Deliveries/Delivery1d1e6b3b85964ccbbbd5c63b3c289ec7/Stage1c3b4663a745479eb353d94d54cd0fc5'
-              precedingStages false
             }
           }
           manual('Review') {
@@ -496,6 +486,9 @@ if releaseVariables["ms-previous-version-pro"] != "-":
               password variable('folder.localHostPassword')
             }
           }
+          manual('Review') {
+            owner 'admin'
+          }
           custom('Check cluster K8s available') {
             failureHandler 'taskApi.commentTask(getCurrentTask().getId(), "K8s cluster available validation completed with error")'
             taskFailureHandlerEnabled true
@@ -564,15 +557,8 @@ if releaseVariables["ms-previous-version-dev"] != "-":
               comment 'Deploying microservice on integration environment.'
             }
           }
-          custom('Mark tracked item: dev') {
-            script {
-              type 'delivery.MarkTrackedItems'
-              deliveryId '${DeliveryID}'
-              patternId 'Deliveries/Delivery1d1e6b3b85964ccbbbd5c63b3c289ec7'
-              trackedItems '${issue} ${jiraSummary}'
-              stage 'Deliveries/Delivery1d1e6b3b85964ccbbbd5c63b3c289ec7/Stagee50c43b2615a40fe885cd6f6d75c83ce'
-              precedingStages false
-            }
+          manual('Review') {
+            owner 'admin'
           }
         }
       }
@@ -659,6 +645,9 @@ if releaseVariables["ms-previous-version-dev"] != "-":
               }
             }
           }
+          manual('Review') {
+            owner 'admin'
+          }
         }
       }
       phase('SOURCE CODE ANALYSIS') {
@@ -734,6 +723,9 @@ if releaseVariables["ms-previous-version-dev"] != "-":
               stage 'Deliveries/Delivery1d1e6b3b85964ccbbbd5c63b3c289ec7/Stagee4f35d1ce6b345d5a76587b530b88056'
               precedingStages false
             }
+          }
+          manual('Review') {
+            owner 'admin'
           }
         }
       }
@@ -922,18 +914,6 @@ if releaseVariables["ms-previous-version-pre"] != "-":
               precedingStages false
             }
           }
-          manual('Wait for other microservices') {
-            owner 'admin'
-          }
-          custom('Wait for other microservices to complete the build and test stage') {
-            precondition 'False'
-            script {
-              type 'delivery.WaitForStage'
-              patternId 'Deliveries/Delivery1d1e6b3b85964ccbbbd5c63b3c289ec7'
-              deliveryId '${DeliveryID}'
-              stage 'Deliveries/Delivery1d1e6b3b85964ccbbbd5c63b3c289ec7/Stageb711d9a1059a49a7a10f5e5acee7af82'
-            }
-          }
         }
       }
       phase('ITSM') {
@@ -988,6 +968,9 @@ if releaseVariables["ms-previous-version-pre"] != "-":
               sysId variable('sysId-changerequest-snow')
               'Ticket' variable('number-changerequest-snow')
             }
+          }
+          manual('Review') {
+            owner 'admin'
           }
         }
       }
@@ -1068,6 +1051,15 @@ if releaseVariables["ms-previous-version-pre"] != "-":
           sequentialGroup('Replace deployment') {
             precondition 'releaseVariables[\'deployment-type\'] == "Replace deployment"'
             tasks {
+              custom('Wait for other microservices to complete the build and test stage') {
+                precondition 'False'
+                script {
+                  type 'delivery.WaitForStage'
+                  patternId 'Deliveries/Delivery1d1e6b3b85964ccbbbd5c63b3c289ec7'
+                  deliveryId '${DeliveryID}'
+                  stage 'Deliveries/Delivery1d1e6b3b85964ccbbbd5c63b3c289ec7/Stageb711d9a1059a49a7a10f5e5acee7af82'
+                }
+              }
               custom('Deploying microservicio ${microservice-name} version ${ms-version} on PRO environment') {
                 owner 'jsalguero'
                 facets {
@@ -1109,6 +1101,18 @@ if releaseVariables["ms-previous-version-pre"] != "-":
                   cli 'XL Deploy CLI 9.0.5'
                   scriptUrl 'https://raw.githubusercontent.com/jclopeza/xlr-scripts/master/createXLDResourcesK8sCanaryDeploy.py'
                   options '${microservice-application} ${traffic-percentage-for-service-1} ${traffic-percentage-for-service-2} ${ms-previous-version-pro-number} ${ms-version}'
+                }
+              }
+              manual('Wait for other microservices') {
+                owner 'admin'
+              }
+              custom('Wait for other microservices to complete the build and test stage') {
+                precondition 'False'
+                script {
+                  type 'delivery.WaitForStage'
+                  patternId 'Deliveries/Delivery1d1e6b3b85964ccbbbd5c63b3c289ec7'
+                  deliveryId '${DeliveryID}'
+                  stage 'Deliveries/Delivery1d1e6b3b85964ccbbbd5c63b3c289ec7/Stageb711d9a1059a49a7a10f5e5acee7af82'
                 }
               }
               custom('Deploying microservicio ${microservice-name} version ${ms-version} on PRO environment in canary release mode') {
@@ -1154,6 +1158,15 @@ if releaseVariables["ms-previous-version-pre"] != "-":
                   options '${microservice-application} 50 50 ${ms-previous-version-pro-number} ${ms-version}'
                 }
               }
+              custom('Wait for other microservices to complete the build and test stage') {
+                precondition 'False'
+                script {
+                  type 'delivery.WaitForStage'
+                  patternId 'Deliveries/Delivery1d1e6b3b85964ccbbbd5c63b3c289ec7'
+                  deliveryId '${DeliveryID}'
+                  stage 'Deliveries/Delivery1d1e6b3b85964ccbbbd5c63b3c289ec7/Stageb711d9a1059a49a7a10f5e5acee7af82'
+                }
+              }
               custom('Deploying microservicio ${microservice-name} version ${ms-version} on PRO environment in A\\/B mode') {
                 owner 'ahartman'
                 facets {
@@ -1195,6 +1208,9 @@ if releaseVariables["ms-previous-version-pre"] != "-":
               shortDescription 'Deploying ${microservice-name} (${microservice-application}) to production: version ${ms-version}'
               sysId '${sysId-changerequest-snow}'
             }
+          }
+          manual('Review') {
+            owner 'admin'
           }
         }
       }
@@ -1238,6 +1254,9 @@ print("Ejecucion de tests")
               type 'dynatrace.StopRecording'
               
             }
+          }
+          manual('Review') {
+            owner 'admin'
           }
         }
       }
@@ -1345,6 +1364,9 @@ print("Ejecucion de tests")
               }
             }
           }
+          manual('Review') {
+            owner 'admin'
+          }
         }
       }
       phase('POST DEPLOY') {
@@ -1417,7 +1439,8 @@ print("Publish blog")
             '* `Version`: ${ms-version}'
             replyTo 'lyhsoftcompany@gmail.com'
           }
-          custom('Mark tracked item: pre (copy)') {
+          custom('Mark tracked item: pro') {
+            precondition 'False'
             script {
               type 'delivery.MarkTrackedItems'
               deliveryId '${DeliveryID}'
@@ -1436,16 +1459,18 @@ print("Publish blog")
         owner 'admin'
         tiles {
           releaseProgressTile('Release progress') {
-            row 1
+            row 2
           }
           releaseSummaryTile('Release summary') {
-            row 1
+            row 2
           }
           resourceUsageTile('Resource usage') {
-            row 3
+            height 1
+            width 1
+            row 1
           }
           timelineTile('Release timeline') {
-            row 2
+            row 3
           }
           jiraQueryTile('Preproducción') {
             row 0
@@ -1466,9 +1491,17 @@ print("Publish blog")
             query 'project = "Voting App" AND status in ("En Producción")'
           }
           deploymentsDistributionTile('Deployments distribution') {
-            row 1
+            row 2
             col 2
             height 1
+          }
+          xLDeployTile('XL Deploy deployments') {
+            row 1
+            col 2
+          }
+          jenkinsBuildsTile('Jenkins builds') {
+            row 1
+            col 1
           }
         }
       }
