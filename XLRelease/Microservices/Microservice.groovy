@@ -1,6 +1,6 @@
 // Exported from:        http://kubuntu:5516/#/templates/Folder2077150601dc4a849abb23e6ec547b04-Releasebd15d585d33f41dfb70bfecb4ae9d191/releasefile
 // XL Release version:   9.5.2
-// Date created:         Tue May 12 19:00:25 CEST 2020
+// Date created:         Tue May 12 19:01:22 CEST 2020
 
 xlr {
   template('Microservice') {
@@ -307,6 +307,9 @@ xlr {
           }
           manual('Review') {
             owner 'admin'
+          }
+          manual('Nuevo cambio para menta') {
+            
           }
         }
       }
