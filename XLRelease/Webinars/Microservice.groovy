@@ -1,6 +1,6 @@
 // Exported from:        http://kubuntu:5516/#/templates/Folder8a8c6038e323440b9561b784d1cd1dd1-Release7d4b27ea39fa4ffc87301b4a37ff0680/releasefile
 // Release version:      9.6.2
-// Date created:         Tue Jun 16 09:41:58 CEST 2020
+// Date created:         Wed Jun 17 11:50:14 CEST 2020
 
 xlr {
   template('Microservice') {
